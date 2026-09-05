@@ -1,11 +1,15 @@
 import * as vscode from 'vscode';
 import type { Logger } from '../util/logger';
+import type { MessageBridge } from '../messaging/bridge';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
+  private bridgeAttached = false;
+
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly extensionUri: vscode.Uri,
     private readonly logger: Logger,
+    private readonly bridge?: MessageBridge,
   ) {}
 
   resolveWebviewView(
@@ -20,26 +24,46 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
     webview.html = this.renderHtml(webview);
 
-    this.logger.info('sidebar resolved');
-
-    // Phase 3 will hook this up to the MessageBridge.
-    webview.onDidReceiveMessage((msg) => {
-      this.logger.debug('webview message', msg);
-    });
+    if (!this.bridgeAttached && this.bridge) {
+      this.bridge.attach(webview);
+      this.bridgeAttached = true;
+      this.bridge.onClientMessage((msg) => {
+        this.logger.debug('webview message', msg);
+      });
+    }
   }
 
   private renderHtml(webview: vscode.Webview): string {
-    // Load the static index.html produced by `next build` (output: 'export').
-    const indexUri = vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview', 'index.html');
+    // The static export lives at dist/webview/index.html.
+    const baseUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview'));
     const cspSource = webview.cspSource;
-    // We inline a minimal placeholder; the real bootstrap happens in Phase 3 once
-    // esbuild copies `webview/out` into `dist/webview`.
-    return `<!doctype html><html><head><meta charset="utf-8"/>
-      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:;" />
-      <title>CodePulse</title></head>
-      <body style="font-family: var(--vscode-font-family, system-ui); color: var(--vscode-foreground);">
-        <p>CodePulse — Phase 2 stub. UI bundles at build time.</p>
-        <p>Asset base: <code>${indexUri.toString()}</code></p>
-      </body></html>`;
+
+    const bootstrap = `
+      <script type="module">
+        window.__CP_BASE = '${baseUri.toString()}/';
+        window.__CP_READY = false;
+      </script>
+    `;
+
+    // Fallback stub when the static export is not yet built.
+    const stub = `
+      <script type="module" src="${baseUri.toString()}/_next/static/chunks/main.js"></script>
+    `;
+
+    return `<!doctype html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8"/>
+        <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; font-src ${cspSource} data:; connect-src 'self';"/>
+        <title>CodePulse</title>
+        ${bootstrap}
+        <base href="${baseUri.toString()}/">
+      </head>
+      <body style="margin:0;background:transparent;">
+        <div id="root">Loading CodePulse…</div>
+        ${stub}
+      </body>
+      </html>`;
   }
 }
