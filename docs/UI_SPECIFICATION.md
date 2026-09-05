@@ -1,9 +1,22 @@
 # CodePulse — UI Specification
 
-Version: 0.1
+Version: 0.2
 Scope: V1
 
 This document describes every UI surface for V1: the sidebar dashboard, the status bar item, and notifications.
+
+---
+
+## 0. Anti-Patterns (do not ship)
+
+- No confetti, no fireworks, no flashing colours.
+- No "🤩" / "🎉" / "OMG" / "POG" copy. Copy is calm and factual.
+- No "you were X% focused" claims (see `ACTIVITY_DETECTION.md` § 16).
+- No modal dialogs.
+- No stealing focus on timer / session events.
+- No settings dialogs the user did not ask to open.
+
+If a feature is "fun but unbecoming", cut it.
 
 ---
 
@@ -68,7 +81,7 @@ SESSIONS TODAY       6
 - **Content**: `🔥 COMBO × N` where `N` is the multiplier.
 - **Animation**: When `N` increments, a 250 ms scale-up + fade of a transient ghost label "× N+1", then settles. Respects `prefers-reduced-motion`.
 - **States**:
-  - **No combo** (`N == 0`): muted text "COMBO —". Hidden entirely if `notifyOnSessionStart` is off and we want minimalism (decision per V1: keep visible but muted).
+  - **No combo** (`N == 0`): muted text "COMBO —". Always visible (decision: keep visible to avoid layout jitter, but muted).
 
 #### Daily Goal Card
 
@@ -85,13 +98,18 @@ SESSIONS TODAY       6
 
 - **Purpose**: At-a-glance daily stats.
 - **Content**: three rows: current session, best session today, sessions today.
-- **States**: loading: skeleton placeholders; empty: zeros; error: last known with a small "stale" tag.
+- **States**:
+  - **Loading**: skeleton placeholders.
+  - **Empty**: zeros (timer at `00:00:00`, sessions `0`). No illustration — empty state is intentional, not apologetic.
+  - **Error**: last known good snapshot with a small "stale" tag and a "Reload" button.
 
 #### Streak Card
 
 - **Purpose**: Show streak.
 - **Content**: `🔥 N DAY STREAK` (singular form when `N == 1`).
-- **States**: at-risk (today not yet qualifying): show "STREAK: 6 — keep going today".
+- **States**:
+  - **At risk** (today not yet qualifying): "STREAK: 6 — keep going today".
+  - **None**: muted "NO STREAK YET".
 
 ### 2.4 Inputs (Webview → Extension)
 
@@ -103,15 +121,18 @@ SESSIONS TODAY       6
 ### 2.5 Outputs (Extension → Webview)
 
 - `snapshot` — full `EngineSnapshot`, 1 Hz.
-- `notification` — UI-only cue (not the OS notification); used for combo / goal / streak transitions.
+- `notification` — UI-only cue (not the OS notification); used for combo / goal / streak transitions. The webview may use this to briefly highlight a card.
 
 ### 2.6 Loading State
 
 - Skeleton blocks for the timer, combo, goal, and stats. Rendered within ~50 ms of `ready`.
+- On the first `snapshot` message, skeleton blocks crossfade to real values over 150 ms. No layout shift.
 
-### 2.7 Empty State
+### 2.7 Snapshot Reconciliation
 
-- When no sessions today: timer shows `00:00:00`, stats show `0`, goal shows `0 / goal`. No empty illustration — empty state should feel intentional, not apologetic.
+- The webview keeps a `lastSnapshot` reference.
+- On every `snapshot` message, fields are merged in (no full re-render flash).
+- If a field is missing in a new snapshot (should not happen, but defensive), the previous value is kept and a `stale` badge is shown after 3 s of staleness.
 
 ### 2.8 Error State
 
@@ -128,6 +149,7 @@ SESSIONS TODAY       6
 - Colour contrast meets WCAG AA against VS Code's default dark and light themes.
 - Animations respect `prefers-reduced-motion`.
 - Combo, streak, and goal copy do not rely on colour alone — text is always present.
+- Headings use real `<h2>` / `<h3>` so screen readers can navigate.
 
 ---
 
