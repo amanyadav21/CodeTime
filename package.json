@@ -1,0 +1,113 @@
+{
+  "name": "codepulse",
+  "displayName": "CodePulse",
+  "description": "Genuine active coding time for VS Code and Cursor. Local-first. Private. Believable.",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "publisher": "codepulse",
+  "engines": {
+    "node": ">=20",
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other", "Productivity"],
+  "keywords": ["productivity", "time-tracking", "developer-tools"],
+  "activationEvents": ["*"],
+  "main": "dist/extension.js",
+  "browser": "dist/webview/index.html",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codepulse",
+          "title": "CodePulse",
+          "icon": "$(pulse)"
+        }
+      ]
+    },
+    "views": {
+      "codepulse": [
+        {
+          "id": "codepulse.dashboard",
+          "name": "Dashboard",
+          "type": "webview",
+          "contextualTitle": "CodePulse"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodePulse",
+      "properties": {
+        "codepulse.idleThresholdSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "maximum": 600,
+          "description": "Seconds of inactivity before the timer transitions ACTIVE -> PAUSED."
+        },
+        "codepulse.sessionEndThresholdSeconds": {
+          "type": "number",
+          "default": 900,
+          "minimum": 60,
+          "maximum": 86400,
+          "description": "Seconds of inactivity before the current session is closed."
+        },
+        "codepulse.goalMinutes": {
+          "type": "number",
+          "default": 240,
+          "minimum": 1,
+          "maximum": 1440,
+          "description": "Daily active coding goal in minutes."
+        },
+        "codepulse.streakMinimumMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 1440,
+          "description": "Minimum active minutes per day to count as a streak day."
+        },
+        "codepulse.historyRetentionDays": {
+          "type": "number",
+          "default": 365,
+          "minimum": 30,
+          "maximum": 3650,
+          "description": "How many days of history to keep in local storage."
+        },
+        "codepulse.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose engine logs in the CodePulse output channel."
+        },
+        "codepulse.notifyOnSessionStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show an OS notification when a new coding session starts."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:webview": "npm --prefix webview run build",
+    "build:extension": "node esbuild.config.mjs",
+    "build": "npm run build:webview && npm run build:extension",
+    "watch": "node esbuild.config.mjs --watch",
+    "dev": "npm run build && code --extensionDevelopmentPath=. .",
+    "package": "npm run build && vsce package --no-dependencies",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "tsc -p . --noEmit && tsc -p webview --noEmit",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-types-webview/
+webview/.next/
+webview/out/
+webview/node_modules/
+coverage/
+.vscode-test/
+*.vsix
+.DS_Store
+*.log
+.env
+.env.local
