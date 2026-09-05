@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { Logger } from '../util/logger';
 import type { MessageBridge } from '../messaging/bridge';
 
@@ -34,36 +36,25 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private renderHtml(webview: vscode.Webview): string {
-    // The static export lives at dist/webview/index.html.
     const baseUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview'));
     const cspSource = webview.cspSource;
 
-    const bootstrap = `
-      <script type="module">
-        window.__CP_BASE = '${baseUri.toString()}/';
-        window.__CP_READY = false;
-      </script>
-    `;
+    const indexPath = path.join(this.extensionUri.fsPath, 'dist', 'webview', 'index.html');
+    let html = '<!doctype html><html lang="en"><head><meta charset="utf-8"/><title>CodePulse</title></head><body><div id="root">Loading CodePulse…</div></body></html>';
+    try {
+      if (fs.existsSync(indexPath)) {
+        html = fs.readFileSync(indexPath, 'utf-8');
+      }
+    } catch (err) {
+      this.logger.warn('sidebar: failed to read webview index.html', err);
+    }
 
-    // Fallback stub when the static export is not yet built.
-    const stub = `
-      <script type="module" src="${baseUri.toString()}/_next/static/chunks/main.js"></script>
-    `;
+    const csp = `default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; font-src ${cspSource} data:; connect-src 'self';`;
+    html = html.replace('<head>', `<head><meta http-equiv="Content-Security-Policy" content="${csp}"/>`);
+    html = html.replace('<head>', `<head><base href="${baseUri.toString()}/">`);
+    const bootstrap = `<script type="module">window.__CP_BASE='${baseUri.toString()}/';</script>`;
+    html = html.replace('<head>', `<head>${bootstrap}`);
 
-    return `<!doctype html>
-      <html lang="en">
-      <head>
-        <meta charset="utf-8"/>
-        <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; font-src ${cspSource} data:; connect-src 'self';"/>
-        <title>CodePulse</title>
-        ${bootstrap}
-        <base href="${baseUri.toString()}/">
-      </head>
-      <body style="margin:0;background:transparent;">
-        <div id="root">Loading CodePulse…</div>
-        ${stub}
-      </body>
-      </html>`;
+    return html;
   }
 }
